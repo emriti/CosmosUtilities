@@ -9,5 +9,7 @@ namespace CosmosUtilities.BLL.CosmosMonitoring.Models
         public string ContainerName { get; set; }
         public string PartitionKey { get; set; }
         public long? Count { get; set; }
+        public int? AvgDocSize { get; set; }
+        public long? TotalContainerSize { get; set; }
     }
 }

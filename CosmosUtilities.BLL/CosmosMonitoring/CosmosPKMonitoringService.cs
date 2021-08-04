@@ -1,7 +1,5 @@
 ﻿using CosmosUtilities.BLL.CosmosMonitoring.Models;
-using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace CosmosUtilities.BLL.CosmosMonitoring
@@ -26,8 +24,12 @@ namespace CosmosUtilities.BLL.CosmosMonitoring
                 {
                     var collInfo = new ContainerInfo();
                     collInfo.ContainerName = coll;
-                    collInfo.Count = await svc.CountContainerRows(db, coll);
+                    var count = await svc.CountContainerRows(db, coll);
+                    collInfo.Count = count;
                     collInfo.PartitionKey = await svc.GetPartitionKey(db, coll);
+                    var avgDocSize = await svc.GetAverageDocumentSize(db, coll);
+                    collInfo.AvgDocSize = avgDocSize > 0 ? avgDocSize : 0;
+                    collInfo.TotalContainerSize = (count * avgDocSize) / (1024);
                     listCollInfo.Add(collInfo);
                 }
                 dbInfo.ListContainerInfo = listCollInfo;

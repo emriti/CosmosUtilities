@@ -1,6 +1,7 @@
 ﻿using CosmosUtilities.BLL.CosmosMonitoring.Models;
 using Microsoft.Azure.Cosmos;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -37,13 +38,13 @@ namespace CosmosUtilities.BLL.CosmosMonitoring
             return result;
         }
 
-        public async Task<int?> GetThroughput (string databaseId)
+        public async Task<int?> GetThroughput(string databaseId)
         {
             var db = _client.GetDatabase(databaseId);
             return await db.ReadThroughputAsync();
         }
 
-        public async Task<List<string>> GetContainersName(string databaseId) 
+        public async Task<List<string>> GetContainersName(string databaseId)
         {
             List<string> result = new List<string>();
             var db = _client.GetDatabase(databaseId);
@@ -89,6 +90,7 @@ namespace CosmosUtilities.BLL.CosmosMonitoring
 
         public async Task<string> GetPartitionKey(string databaseId, string containerId)
         {
+            string result = "";
             var coll = _client.GetContainer(databaseId, containerId);
             var qDef = new QueryDefinition("SELECT * FROM c OFFSET 0 LIMIT 1");
             var iterator = coll.GetItemQueryStreamIterator(qDef);
@@ -101,22 +103,58 @@ namespace CosmosUtilities.BLL.CosmosMonitoring
                 try
                 {
                     string msgDetail = JsonConvert.SerializeObject(data?.Documents?[0]);
-                    var dataDetail = JsonConvert.DeserializeObject<Dictionary<string, string>>(msgDetail);
-
-                    var pks = dataDetail["partitionKey"].Split("/");
-                    var result = pks[0];
-                    for (int i = 1; i < pks.Length; i++)
+                    JObject parsed = JObject.Parse(msgDetail);
+                    Dictionary<string, object> dataDetail = parsed.ToObject<Dictionary<string, object>>();
+                    string pk = dataDetail?["partitionKey"]?.ToString();
+                    var pks = pk.Split("/");
+                    if (pks.Length > 1)
                     {
-                        result += "/" + dataDetail.Where(p => p.Value == pks[i]).Select(p => p.Key).FirstOrDefault(); 
+                        result = pks[0];
+                        for (int i = 1; i < pks.Length; i++)
+                        {
+                            result += "/" + dataDetail.Where(p => p.Value?.ToString() == pks[i]).Select(p => p.Key).FirstOrDefault();
+                        }
+                        return result;
                     }
+                    return pk;
+                }
+                catch (Exception ex)
+                {
                     return result;
+                }
+            }
+            return result;
+        }
+
+        public async Task<int?> GetAverageDocumentSize(string databaseId, string containerId)
+        {
+            var coll = _client.GetContainer(databaseId, containerId);
+            var qDef = new QueryDefinition("SELECT * FROM c OFFSET 0 LIMIT 100");
+            var iterator = coll.GetItemQueryStreamIterator(qDef);
+            if (iterator.HasMoreResults)
+            {
+                var response = await iterator.ReadNextAsync();
+                StreamReader sr = new StreamReader(response?.Content);
+                var msg = await sr.ReadToEndAsync();
+                dynamic data = JsonConvert.DeserializeObject(msg);
+                try
+                {
+                    string msgDetail = JsonConvert.SerializeObject(data?.Documents);
+                    object[] dataDetail = JsonConvert.DeserializeObject<object[]>(msgDetail);
+
+                    var total = 0;
+                    foreach (var detail in dataDetail)
+                    {
+                        total += detail.ToString().Length;
+                    }
+                    return total / 100;
                 }
                 catch (Exception)
                 {
-                    return "";
+                    return 0;
                 }
             }
-            return "";
+            return 0;
         }
 
     }

@@ -1,9 +1,8 @@
-﻿using System;
-using CosmosUtilities.BLL.CosmosMonitoring;
-using System.Threading.Tasks;
-using System.Collections.Generic;
+﻿using CosmosUtilities.BLL.CosmosMonitoring;
 using CosmosUtilities.BLL.ExportData;
+using System.Collections.Generic;
 using System.Configuration;
+using System.Threading.Tasks;
 
 namespace CosmosUtilities.Console
 {
@@ -23,7 +22,9 @@ namespace CosmosUtilities.Console
             //var a = await svc.GetDatabasesName();
             //await svc.GetContainersName("Forum");
             //await svc.CountContainerRows("Forum", "FeedPost");
-            //await svc.GetPartitionKey("Forum", "FeedPost");
+            //var b = await svc.GetPartitionKey("Course", "ClassSession");
+            //var b = await svc.GetPartitionKey("Course", "GroupMember");
+            //var a = await svc.GetAverageSize("Course", "ClassSession");
         }
 
         private static async Task GenerateCSV(string dbName, string dbConn)
@@ -31,7 +32,7 @@ namespace CosmosUtilities.Console
             CosmosPKMonitoringService svc = new CosmosPKMonitoringService();
             var databaseInfos = await svc.GetCosmosPKMonitoringResult(dbName, dbConn);
 
-            object[] header = new object[] { "No", "DatabaseName", "DatabaseRU", "ContainerName", "PartitionKey", "Count" };
+            object[] header = new object[] { "No", "Database Name", "Database RU", "Container Name", "Partition Key", "Avg Doc Size (Byte)", "Count", "Total Container Size (KB)" };
             var i = 0;
             List<object[]> details = new List<object[]>();
             foreach (var databaseInfo in databaseInfos)
@@ -39,13 +40,13 @@ namespace CosmosUtilities.Console
                 foreach (var containerInfo in databaseInfo.ListContainerInfo)
                 {
                     var detail = new object[] { ++i, databaseInfo.DatabaseName, databaseInfo.DatabaseRU, containerInfo.ContainerName,
-                        containerInfo.PartitionKey, containerInfo.Count };
+                        containerInfo.PartitionKey, containerInfo.AvgDocSize, containerInfo.Count ,containerInfo.TotalContainerSize };
                     details.Add(detail);
                 }
             }
 
             ExportCSVService exportSvc = new ExportCSVService();
-            exportSvc.ExportCSV("C:\\Users\\emriti\\Documents\\info_prod_20200801.csv", details, header);
+            exportSvc.ExportCSV("C:\\Users\\emriti\\Documents\\info_prod_20200804_v2.csv", details, header);
         }
     }
 }
